@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Girish Image Generator</title>
+    
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* Custom styles for the app and the sparkle effect */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0a0a0a; /* A very dark gray for the background */
+            overflow-x: hidden; /* Prevent horizontal scroll */
+        }
+
+        /* Sparkle container */
+        #sparkle-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* Make sure it doesn't interfere with clicks */
+            z-index: -1; /* Place it behind all other content */
+        }
+
+        /* Individual sparkle element */
+        .sparkle {
+            position: absolute;
+            background-color: white;
+            border-radius: 50%;
+            animation: twinkle 5s infinite;
+            opacity: 0;
+        }
+
+        /* Twinkle animation for sparkles */
+        @keyframes twinkle {
+            0%, 100% {
+                opacity: 0;
+                transform: scale(0.5);
+            }
+            50% {
+                opacity: 0.8;
+                transform: scale(1.2);
+            }
+        }
+        
+        /* Custom scrollbar for better aesthetics in dark mode */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1a1a1a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4a4a4a;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #6a6a6a;
+        }
+
+        /* Loading shimmer effect for the image placeholder */
+        .shimmer {
+            position: relative;
+            overflow: hidden;
+            background-color: #333;
+        }
+        .shimmer::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            animation: shimmer-animation 1.5s infinite;
+        }
+
+        @keyframes shimmer-animation {
+            100% {
+                left: 100%;
+            }
+        }
+        
+        /* Styles for the preview modal */
+        #preview-modal {
+            transition: opacity 0.3s ease-in-out;
+        }
+        
+        #modal-image {
+            max-width: 90vw;
+            max-height: 85vh;
+            animation: zoomIn 0.3s ease-in-out;
+        }
+
+        @keyframes zoomIn {
+            from {
+                transform: scale(0.8);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+        
+        /* Aspect Ratio styles for the image container */
+        .aspect-ratio-1-1 { aspect-ratio: 1 / 1; }
+        .aspect-ratio-9-16 { aspect-ratio: 9 / 16; }
+        .aspect-ratio-16-9 { aspect-ratio: 16 / 9; }
+
+        /* History thumbnail style */
+        .history-item img {
+            transition: transform 0.2s ease-in-out;
+        }
+        .history-item:hover img {
+            transform: scale(1.05);
+        }
+        
+        /* Custom Toggle Switch */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #8b5cf6;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #8b5cf6;
+        }
+    </style>
+</head>
+<body class="text-white">
+
+    <!-- Sparkle Background Container -->
+    <div id="sparkle-container"></div>
+
+    <!-- Main Application Wrapper -->
+    <div class="relative min-h-screen flex flex-col items-center justify-center p-4 overflow-y-auto">
+        <div class="w-full max-w-2xl mx-auto bg-gray-900/50 backdrop-blur-md border border-gray-700 rounded-2xl shadow-2xl shadow-purple-500/10 p-6 md:p-8">
+            
+            <!-- Header -->
+            <header class="text-center mb-6">
+                <h1 class="text-3xl md:text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-500">
+                    Girish Image Generator
+                </h1>
+                <p class="text-gray-400 mt-2">Turn your imagination into stunning visuals.</p>
+            </header>
+
+            <!-- Input and Generate Section -->
+            <main>
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <input type="text" id="prompt-input" placeholder="Enter a prompt or get suggestions" class="flex-grow bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 transition duration-300">
+                    <button id="enhance-btn" title="Enhance prompt with AI" class="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-3 px-4 rounded-lg shadow-md transform hover:scale-105 transition duration-300 flex items-center justify-center">
+                        ✨ Enhance
+                    </button>
+                    <button id="generate-btn" class="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold py-3 px-6 rounded-lg shadow-lg transform hover:scale-105 transition duration-300 flex items-center justify-center">
+                        <svg id="generate-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-stars mr-2" viewBox="0 0 16 16">
+                            <path d="M7.657 6.247c.11-.33.576-.33.686 0l.645 1.937a2.89 2.89 0 0 0 1.829 1.828l1.936.645c.33.11.33.576 0 .686l-1.937.645a2.89 2.89 0 0 0-1.828 1.829l-.645 1.936a.361.361 0 0 1-.686 0l-.645-1.937a2.89 2.89 0 0 0-1.828-1.828l-1.937-.645a.361.361 0 0 1 0-.686l1.937-.645a2.89 2.89 0 0 0 1.828-1.828zM3.794 1.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387A1.73 1.73 0 0 0 4.58 5.794l-.387 1.162a.217.217 0 0 1-.412 0L3.4 5.794A1.73 1.73 0 0 0 2.303 4.706l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387A1.73 1.73 0 0 0 3.4 2.31zM10.893 10.893a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387a1.73 1.73 0 0 0-1.097 1.097l-.387 1.162a.217.217 0 0 1-.412 0l-.387-1.162A1.73 1.73 0 0 0 10.893 13.5l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387a1.73 1.73 0 0 0 1.097-1.097z"/>
+                        </svg>
+                        <span id="generate-text">Generate</span>
+                        <div id="loading-spinner" class="hidden animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    </button>
+                </div>
+                
+                <!-- Options: Aspect Ratio & Quality -->
+                <div class="my-4 grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                    <div id="aspect-ratio-selector" class="flex justify-center bg-gray-800 rounded-lg p-1">
+                        <button data-ratio="1:1" class="ratio-btn flex-1 py-2 px-4 text-sm font-medium rounded-md transition duration-200">Square</button>
+                        <button data-ratio="9:16" class="ratio-btn flex-1 py-2 px-4 text-sm font-medium rounded-md transition duration-200">Portrait</button>
+                        <button data-ratio="16:9" class="ratio-btn flex-1 py-2 px-4 text-sm font-medium rounded-md transition duration-200">Landscape</button>
+                    </div>
+                    <div class="flex items-center justify-center gap-3">
+                        <label for="quality-toggle" class="text-sm font-medium text-gray-300">Highest Quality</label>
+                        <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                            <input type="checkbox" name="quality-toggle" id="quality-toggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"/>
+                            <label for="quality-toggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-600 cursor-pointer"></label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Prompt Suggestions Section -->
+                <div class="mb-4 text-center">
+                    <button id="suggest-btn" class="text-purple-400 hover:text-purple-300 transition duration-300">
+                        ✨ Get Prompt Suggestions
+                    </button>
+                    <div id="suggestions-container" class="mt-3 flex flex-wrap justify-center gap-2"></div>
+                     <div id="suggestions-loader" class="hidden mt-3 text-gray-400">Generating ideas...</div>
+                </div>
+
+
+                <!-- Image Display Area -->
+                <div id="image-container" class="w-full bg-gray-800/50 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-600 transition-all duration-300 ease-in-out">
+                    <div id="placeholder" class="text-center text-gray-500 p-4">
+                        <div id="placeholder-content">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" fill="currentColor" class="bi bi-image-alt mx-auto mb-4" viewBox="0 0 16 16">
+                                <path d="M7 2.5a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0m4.225 4.053a.5.5 0 0 0-.577.093l-3.71 4.71-2.66-2.772a.5.5 0 0 0-.63.062L.002 13.5v-11a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v11h-15.998zm11.775 2.083-5.248-6.81a.5.5 0 0 0-.78-.044l-3.335 4.018-2.396-2.396a.5.5 0 0 0-.707 0L1 12.489V2a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1z"/>
+                            </svg>
+                            <p>Your generated image will appear here.</p>
+                        </div>
+                        <div id="placeholder-status" class="hidden text-gray-400"></div>
+                    </div>
+                    <img id="generated-image" src="" alt="Generated AI Image" class="hidden w-full h-full object-contain rounded-lg">
+                </div>
+                
+                 <!-- Action Buttons: Preview & Download -->
+                <div id="action-buttons" class="hidden mt-4 flex justify-center gap-4">
+                    <button id="preview-btn" class="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-5 rounded-lg shadow-md transform hover:scale-105 transition duration-300 flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-eye-fill mr-2" viewBox="0 0 16 16"><path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0"/><path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8m8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7"/></svg>
+                        Preview
+                    </button>
+                    <button id="download-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-5 rounded-lg shadow-md transform hover:scale-105 transition duration-300 flex items-center">
+                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-download mr-2" viewBox="0 0 16 16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708z"/></svg>
+                        Download
+                    </button>
+                </div>
+                
+                <!-- Final Prompt Display -->
+                <div id="final-prompt-display" class="hidden mt-4 p-3 bg-gray-800/70 rounded-lg">
+                    <p class="text-xs text-gray-400 mb-1">Final prompt used for generation:</p>
+                    <p id="final-prompt-text" class="text-sm text-gray-300"></p>
+                </div>
+
+                <!-- Error Message Box -->
+                <div id="error-box" class="hidden mt-4 bg-red-900/50 border border-red-500 text-red-300 px-4 py-3 rounded-lg relative" role="alert">
+                    <strong class="font-bold">Oops!</strong>
+                    <span class="block sm:inline" id="error-message">Something went wrong.</span>
+                </div>
+
+            </main>
+        </div>
+
+        <!-- History Section -->
+        <div id="history-section" class="hidden w-full max-w-2xl mx-auto mt-8">
+             <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-gray-300">Recent Creations</h2>
+                <button id="clear-history-btn" class="text-sm text-red-400 hover:text-red-300 transition">Clear History</button>
+            </div>
+            <div id="history-grid" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+                <!-- History items will be injected here by JavaScript -->
+            </div>
+        </div>
+
+        <!-- Footer with Social Links -->
+        <footer class="w-full max-w-2xl mx-auto text-center mt-8 pb-4">
+             <div class="flex justify-center items-center space-x-5">
+                <a href="https://www.instagram.com/girish_lade_/" target="_blank" rel="noopener noreferrer" class="text-gray-400 hover:text-white transition duration-300" title="Instagram">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919A118.663 118.663 0 0 1 12 2.163zm0 1.441c-3.161 0-3.52.011-4.75.068-2.784.127-3.945 1.273-4.071 4.071-.057 1.23-.067 1.583-.067 4.75s.01 3.52.067 4.75c.126 2.798 1.287 3.945 4.071 4.071 1.23.057 1.589.068 4.75.068s3.52-.011 4.75-.068c2.784-.127 3.945-1.273 4.071-4.071.057-1.23.067-1.583-.067-4.75s-.01-3.52-.067-4.75c-.126-2.798-1.287-3.945-4.071-4.071-1.23-.057-1.589-.068-4.75-.068zm0 3.882a4.512 4.512 0 1 0 0 9.024 4.512 4.512 0 0 0 0-9.024zM12 15a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm6.406-11.845a1.44 1.44 0 1 0 0 2.88 1.44 1.44 0 0 0 0-2.88z"/></svg>
+                </a>
+                <a href="https://www.linkedin.com/in/girish-lade-075bba201/" target="_blank" rel="noopener noreferrer" class="text-gray-400 hover:text-white transition duration-300" title="LinkedIn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
+                </a>
+                <a href="https://github.com/girishlade111" target="_blank" rel="noopener noreferrer" class="text-gray-400 hover:text-white transition duration-300" title="GitHub">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.91 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                </a>
+                <a href="https://codepen.io/Girish-Lade-the-looper" target="_blank" rel="noopener noreferrer" class="text-gray-400 hover:text-white transition duration-300" title="Codepen">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M12 23.999l-11.999-7.5v-9l11.999-7.5 12 7.5v9l-12 7.5zm-10.02-8.313l10.02 6.262 10.021-6.262v-7.373l-10.021-6.263-10.02 6.263v7.373zm5.02-2.686v-3h10v3h-10zm2-5v-2h6v2h-6zm-4.001 7l2.001-4h-2l-2 4h2zm4.001 2l-2-4h8l-2 4h-4z"/></svg>
+                </a>
+                <a href="mailto:girishlade111@gmail.com" class="text-gray-400 hover:text-white transition duration-300" title="Email">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M0 3v18h24v-18h-24zm21.518 2l-9.518 7.713-9.518-7.713h19.036zm-19.518 14v-11.817l10 8.104 10-8.104v11.817h-20z"/></svg>
+                </a>
+            </div>
+            <p class="text-gray-500 text-sm mt-4">Developed by Girish Lade</p>
+        </footer>
+    </div>
+
+    <!-- Preview Modal -->
+    <div id="preview-modal" class="hidden fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
+        <img id="modal-image" src="" alt="Full-screen preview" class="rounded-lg shadow-2xl">
+        <button id="close-modal-btn" class="absolute top-4 right-4 text-white text-4xl font-bold hover:text-gray-300 transition">&times;</button>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DOM Element References ---
+            const sparkleContainer = document.getElementById('sparkle-container');
+            const promptInput = document.getElementById('prompt-input');
+            const generateBtn = document.getElementById('generate-btn');
+            const enhanceBtn = document.getElementById('enhance-btn');
+            const suggestBtn = document.getElementById('suggest-btn');
+            const suggestionsContainer = document.getElementById('suggestions-container');
+            const suggestionsLoader = document.getElementById('suggestions-loader');
+            const generateIcon = document.getElementById('generate-icon');
+            const generateText = document.getElementById('generate-text');
+            const loadingSpinner = document.getElementById('loading-spinner');
+            const imageContainer = document.getElementById('image-container');
+            const placeholder = document.getElementById('placeholder');
+            const placeholderContent = document.getElementById('placeholder-content');
+            const placeholderStatus = document.getElementById('placeholder-status');
+            const generatedImage = document.getElementById('generated-image');
+            const errorBox = document.getElementById('error-box');
+            const errorMessage = document.getElementById('error-message');
+            const actionButtons = document.getElementById('action-buttons');
+            const previewBtn = document.getElementById('preview-btn');
+            const downloadBtn = document.getElementById('download-btn');
+            const previewModal = document.getElementById('preview-modal');
+            const modalImage = document.getElementById('modal-image');
+            const closeModalBtn = document.getElementById('close-modal-btn');
+            const ratioButtons = document.querySelectorAll('.ratio-btn');
+            const qualityToggle = document.getElementById('quality-toggle');
+            const finalPromptDisplay = document.getElementById('final-prompt-display');
+            const finalPromptText = document.getElementById('final-prompt-text');
+            const historySection = document.getElementById('history-section');
+            const historyGrid = document.getElementById('history-grid');
+            const clearHistoryBtn = document.getElementById('clear-history-btn');
+
+            // --- State Variables ---
+            let currentAspectRatio = '1:1';
+            let isHighQualityMode = false;
+            let history = [];
+            const HISTORY_KEY = 'girishImageGeneratorHistory';
+            const MAX_HISTORY_ITEMS = 18; // Increased history size due to optimization
+
+            // --- API Configuration ---
+            const GEMINI_API_KEY = ""; // Handled by environment
+            const GEMINI_API_URL_TEXT = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+            const IMAGEN_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${GEMINI_API_KEY}`;
+
+
+            // --- Sparkle Effect ---
+            const createSparkles = () => {
+                if (sparkleContainer.children.length > 0) return;
+                const sparkleCount = 50;
+                for (let i = 0; i < sparkleCount; i++) {
+                    const sparkle = document.createElement('div');
+                    sparkle.className = 'sparkle';
+                    const size = Math.random() * 3 + 1;
+                    sparkle.style.width = `${size}px`;
+                    sparkle.style.height = `${size}px`;
+                    sparkle.style.top = `${Math.random() * 100}%`;
+                    sparkle.style.left = `${Math.random() * 100}%`;
+                    sparkle.style.animationDelay = `${Math.random() * 5}s`;
+                    sparkle.style.animationDuration = `${Math.random() * 3 + 4}s`;
+                    sparkleContainer.appendChild(sparkle);
+                }
+            };
+
+            // --- UI State Management ---
+            const showLoadingState = (isLoading) => {
+                generateBtn.disabled = isLoading;
+                if (isLoading) {
+                    generateIcon.classList.add('hidden');
+                    generateText.classList.add('hidden');
+                    loadingSpinner.classList.remove('hidden');
+                    imageContainer.classList.add('shimmer');
+                    placeholder.classList.add('opacity-50');
+                    actionButtons.classList.add('hidden');
+                } else {
+                    generateIcon.classList.remove('hidden');
+                    generateText.classList.remove('hidden');
+                    loadingSpinner.classList.add('hidden');
+                    imageContainer.classList.remove('shimmer');
+                    placeholder.classList.remove('opacity-100');
+                }
+            };
+            
+            const setPlaceholderStatus = (text) => {
+                placeholderContent.classList.add('hidden');
+                placeholderStatus.classList.remove('hidden');
+                placeholderStatus.textContent = text;
+            };
+
+            const resetPlaceholder = () => {
+                placeholderContent.classList.remove('hidden');
+                placeholderStatus.classList.add('hidden');
+            };
+            
+            const showError = (message) => {
+                errorMessage.textContent = message;
+                errorBox.classList.remove('hidden');
+            };
+
+            const hideError = () => {
+                errorBox.classList.add('hidden');
+            };
+
+            // --- Modal Controls ---
+            const openModal = () => {
+                modalImage.src = generatedImage.src;
+                previewModal.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+            };
+
+            const closeModal = () => {
+                previewModal.classList.add('hidden');
+                document.body.style.overflow = 'auto';
+            };
+            
+            // --- Aspect Ratio Control ---
+            const setActiveRatio = (ratio) => {
+                currentAspectRatio = ratio;
+                ratioButtons.forEach(button => {
+                    if (button.dataset.ratio === ratio) {
+                        button.classList.add('bg-purple-600', 'text-white');
+                        button.classList.remove('text-gray-400');
+                    } else {
+                        button.classList.remove('bg-purple-600', 'text-white');
+                        button.classList.add('text-gray-400');
+                    }
+                });
+                imageContainer.classList.remove('aspect-ratio-1-1', 'aspect-ratio-9-16', 'aspect-ratio-16-9');
+                if (ratio === '1:1') imageContainer.classList.add('aspect-ratio-1-1');
+                if (ratio === '9:16') imageContainer.classList.add('aspect-ratio-9-16');
+                if (ratio === '16:9') imageContainer.classList.add('aspect-ratio-16-9');
+            };
+            
+            // --- History Management ---
+            const renderHistory = () => {
+                historyGrid.innerHTML = '';
+                if (history.length === 0) {
+                    historySection.classList.add('hidden');
+                    return;
+                }
+                historySection.classList.remove('hidden');
+                
+                history.forEach(item => {
+                    const historyItem = document.createElement('div');
+                    historyItem.className = 'history-item cursor-pointer rounded-lg overflow-hidden border-2 border-transparent hover:border-purple-500 transition-all';
+                    historyItem.title = `Prompt: ${item.prompt}`;
+                    historyItem.innerHTML = `<img src="${item.thumbnailUrl}" alt="${item.prompt}" class="w-full h-full object-cover">`;
+                    historyItem.addEventListener('click', () => {
+                        promptInput.value = item.prompt;
+                        setActiveRatio(item.aspectRatio);
+                        generatedImage.classList.add('hidden');
+                        placeholder.classList.remove('hidden');
+                        resetPlaceholder();
+                        actionButtons.classList.add('hidden');
+                        finalPromptDisplay.classList.add('hidden');
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    });
+                    historyGrid.appendChild(historyItem);
+                });
+            };
+
+            const saveToHistory = (fullImageUrl, prompt, aspectRatio) => {
+                const img = new Image();
+                img.crossOrigin = "Anonymous";
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    const thumbSize = 150;
+                    canvas.width = thumbSize;
+                    canvas.height = thumbSize;
+                    const sourceAspect = img.width / img.height;
+                    const targetAspect = 1.0;
+                    let sourceX = 0, sourceY = 0, sourceWidth = img.width, sourceHeight = img.height;
+                    if (sourceAspect > targetAspect) {
+                        sourceWidth = img.height * targetAspect;
+                        sourceX = (img.width - sourceWidth) / 2;
+                    } else {
+                        sourceHeight = img.width / targetAspect;
+                        sourceY = (img.height - sourceHeight) / 2;
+                    }
+                    ctx.drawImage(img, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, thumbSize, thumbSize);
+                    const thumbnailUrl = canvas.toDataURL('image/jpeg', 0.7);
+
+                    history.unshift({ thumbnailUrl, prompt, aspectRatio });
+                    if (history.length > MAX_HISTORY_ITEMS) {
+                        history.pop();
+                    }
+                    try {
+                        localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+                    } catch (e) {
+                        console.error("Failed to save history, likely due to storage quota.", e);
+                        showError("Could not save to history. Storage might be full.");
+                        if (history.length > 0) {
+                            history.pop();
+                            localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+                        }
+                    } finally {
+                        renderHistory();
+                    }
+                };
+                img.onerror = () => console.error("Could not load image to create thumbnail.");
+                img.src = fullImageUrl;
+            };
+
+            const loadHistory = () => {
+                try {
+                    const savedHistory = localStorage.getItem(HISTORY_KEY);
+                    if (savedHistory) {
+                        history = JSON.parse(savedHistory);
+                        renderHistory();
+                    }
+                } catch (e) {
+                    console.error("Could not load or parse history from localStorage.", e);
+                    localStorage.removeItem(HISTORY_KEY);
+                }
+            };
+
+            const clearHistory = () => {
+                history = [];
+                localStorage.removeItem(HISTORY_KEY);
+                renderHistory();
+            };
+
+            // --- Gemini API Calls ---
+            const getEnhancedPrompt = async (userPrompt, systemInstruction) => {
+                const payload = { contents: [{ role: "user", parts: [{ text: `${systemInstruction}\n\nUser prompt: "${userPrompt}"` }] }] };
+                const response = await fetch(GEMINI_API_URL_TEXT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) throw new Error('Failed to get response from AI.');
+                const result = await response.json();
+                if (result.candidates && result.candidates.length > 0) {
+                    return result.candidates[0].content.parts[0].text.trim().replace(/^"|"$/g, '');
+                }
+                throw new Error("Received no response from AI.");
+            };
+
+            const enhancePrompt = async () => {
+                const currentPrompt = promptInput.value.trim();
+                if (!currentPrompt) {
+                    showError('Please enter a prompt to enhance.');
+                    return;
+                }
+                hideError();
+                enhanceBtn.disabled = true;
+                enhanceBtn.innerHTML = 'Enhancing...';
+                try {
+                    const instruction = "You are an expert in writing creative and detailed prompts for an AI image generator. Enhance the following user prompt by adding vivid details, specifying artistic style, lighting, and composition. Make it more descriptive and imaginative. Respond with only the enhanced prompt text.";
+                    promptInput.value = await getEnhancedPrompt(currentPrompt, instruction);
+                } catch (error) {
+                    console.error('Error enhancing prompt:', error);
+                    showError('Could not enhance the prompt. Please try again.');
+                } finally {
+                    enhanceBtn.disabled = false;
+                    enhanceBtn.innerHTML = '✨ Enhance';
+                }
+            };
+
+            const suggestPrompts = async () => {
+                hideError();
+                suggestBtn.classList.add('hidden');
+                suggestionsLoader.classList.remove('hidden');
+                suggestionsContainer.innerHTML = '';
+                try {
+                    const payload = {
+                        contents: [{ role: "user", parts: [{ text: "Generate 3 diverse and creative prompts for an AI image generator. The prompts should be suitable for creating visually stunning images." }] }],
+                        generationConfig: {
+                            responseMimeType: "application/json",
+                            responseSchema: {
+                                type: "OBJECT",
+                                properties: { prompts: { type: "ARRAY", items: { type: "STRING" } } }
+                            }
+                        }
+                    };
+                    const response = await fetch(GEMINI_API_URL_TEXT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                    if (!response.ok) throw new Error('Failed to get suggestions from AI.');
+                    const result = await response.json();
+                    const suggestions = JSON.parse(result.candidates[0].content.parts[0].text).prompts;
+                    if (suggestions && suggestions.length > 0) {
+                        suggestions.forEach(promptText => {
+                            const button = document.createElement('button');
+                            button.textContent = promptText;
+                            button.className = 'bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium py-2 px-3 rounded-lg shadow-md transition duration-300';
+                            button.onclick = () => {
+                                promptInput.value = promptText;
+                                suggestionsContainer.innerHTML = '';
+                                suggestBtn.classList.remove('hidden');
+                            };
+                            suggestionsContainer.appendChild(button);
+                        });
+                    } else {
+                        throw new Error("Received no suggestions from AI.");
+                    }
+                } catch (error) {
+                    console.error('Error suggesting prompts:', error);
+                    showError('Could not get suggestions. Please try again.');
+                } finally {
+                    suggestionsLoader.classList.add('hidden');
+                    if (suggestionsContainer.children.length === 0) {
+                        suggestBtn.classList.remove('hidden');
+                    }
+                }
+            };
+
+            // --- Imagen API: Generate Image ---
+            const generateImage = async () => {
+                let userPrompt = promptInput.value.trim();
+                if (!userPrompt) {
+                    showError('Please enter a prompt to generate an image.');
+                    return;
+                }
+                hideError();
+                showLoadingState(true);
+                generatedImage.classList.add('hidden');
+                placeholder.classList.remove('hidden');
+                finalPromptDisplay.classList.add('hidden');
+                
+                let finalPrompt = userPrompt;
+
+                try {
+                    if (isHighQualityMode) {
+                        setPlaceholderStatus('Enhancing prompt for highest quality...');
+                        const instruction = "You are a master artist creating a prompt for an image generator. Take the user's idea and transform it into a masterpiece prompt. Add extreme detail, photorealistic qualities, specify camera lenses, aperture, shutter speed, lighting (like volumetric, cinematic, global illumination), and art styles (like octane render, unreal engine, hyperdetailed). The final prompt must be a single, powerful paragraph. Respond with only the enhanced prompt text.";
+                        finalPrompt = await getEnhancedPrompt(userPrompt, instruction);
+                        finalPromptText.textContent = finalPrompt;
+                        finalPromptDisplay.classList.remove('hidden');
+                    }
+                    
+                    setPlaceholderStatus('Generating image...');
+
+                    const payload = {
+                        instances: [{ prompt: finalPrompt }],
+                        parameters: { "sampleCount": 1, "aspectRatio": currentAspectRatio }
+                    };
+                    const response = await fetch(IMAGEN_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`);
+                    }
+                    const result = await response.json();
+                    if (result.predictions && result.predictions.length > 0 && result.predictions[0].bytesBase64Encoded) {
+                        const imageUrl = `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
+                        generatedImage.src = imageUrl;
+                        generatedImage.classList.remove('hidden');
+                        placeholder.classList.add('hidden');
+                        actionButtons.classList.remove('hidden');
+                        saveToHistory(imageUrl, userPrompt, currentAspectRatio);
+                    } else {
+                        throw new Error('Image data not found in the API response.');
+                    }
+                } catch (error) {
+                    console.error('Error generating image:', error);
+                    showError(error.message || 'An unexpected error occurred. Please try again.');
+                    actionButtons.classList.add('hidden');
+                    finalPromptDisplay.classList.add('hidden');
+                } finally {
+                    showLoadingState(false);
+                    resetPlaceholder();
+                }
+            };
+
+            // --- Download Functionality ---
+            const downloadImage = () => {
+                const link = document.createElement('a');
+                link.href = generatedImage.src;
+                link.download = `girish-image-${promptInput.value.slice(0,20).replace(/\s/g, '_')}.png`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            };
+
+            // --- Event Listeners ---
+            generateBtn.addEventListener('click', generateImage);
+            enhanceBtn.addEventListener('click', enhancePrompt);
+            suggestBtn.addEventListener('click', suggestPrompts);
+            clearHistoryBtn.addEventListener('click', clearHistory);
+            qualityToggle.addEventListener('change', (e) => {
+                isHighQualityMode = e.target.checked;
+            });
+            ratioButtons.forEach(button => {
+                button.addEventListener('click', () => setActiveRatio(button.dataset.ratio));
+            });
+            promptInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') generateImage(); });
+            previewBtn.addEventListener('click', openModal);
+            downloadBtn.addEventListener('click', downloadImage);
+            closeModalBtn.addEventListener('click', closeModal);
+            previewModal.addEventListener('click', (e) => { if (e.target === previewModal) closeModal(); });
+            document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !previewModal.classList.contains('hidden')) closeModal(); });
+
+            // --- Initializations ---
+            createSparkles();
+            setActiveRatio('1:1');
+            loadHistory();
+        });
+    </script>
+</body>
+</html>
